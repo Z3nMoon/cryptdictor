@@ -1,8 +1,17 @@
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'Arial', sans-serif;
   padding: 20px;
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
+  background: #f5f6fa;
+}
+
+.section {
+  background: white;
+  padding: 20px;
+  margin: 20px 0;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
 .grid {
@@ -12,14 +21,37 @@ body {
 }
 
 .coin-card {
-  border: 1px solid #ddd;
-  padding: 10px;
+  border: 1px solid #e0e0e0;
+  padding: 15px;
   border-radius: 8px;
-  background: #f9f9f9;
+  transition: transform 0.2s;
 }
 
-#prediction, #accuracy {
-  padding: 15px;
-  margin: 20px 0;
-  border: 1px dashed #ccc;
+.coin-card:hover {
+  transform: translateY(-2px);
+}
+
+.prediction-card {
+  padding: 20px;
+  background: #4a90e2;
+  color: white;
+  border-radius: 8px;
+  margin: 10px 0;
+}
+
+#accuracy-history table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+#accuracy-history th, 
+#accuracy-history td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+#accuracy-history tr:hover {
+  background: #f9f9f9;
 }
