@@ -1,12 +1,67 @@
+<!-- UI.html -->
 <!DOCTYPE html>
 <html>
-<head>
-  <title>Cryptdictor</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <h1>Top 25 Cryptos</h1>
-  <div id="crypto-list" class="grid"></div>
-  <script src="script.js"></script>
-</body>
+  <head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
+    <style>
+      .crypto-card { background: #1a1a1a; border-radius: 15px; padding: 20px; margin: 10px; }
+      .prediction-chart { height: 400px; width: 100%; }
+      .accuracy-badge { font-size: 0.8em; padding: 3px 8px; }
+    </style>
+    <script>
+      google.charts.load('current', {packages: ['corechart']});
+      
+      function init() {
+        loadData();
+        setInterval(loadData, 300000);
+      }
+
+      function loadData() {
+        google.script.run.withSuccessHandler(updateUI).getLatestData();
+      }
+
+      function updateUI(data) {
+        document.getElementById("cryptoGrid").innerHTML = data.map(crypto => `
+          <div class="col-md-3">
+            <div class="crypto-card">
+              <h5>${crypto.symbol}</h5>
+              <div class="row">
+                <div class="col-6">Price: $${crypto.price.toFixed(2)}</div>
+                <div class="col-6">Predicted: $${crypto.prediction.toFixed(2)}</div>
+              </div>
+              <div class="mt-2">
+                <span class="badge ${crypto.accuracy > 90 ? 'bg-success' : 'bg-warning'} accuracy-badge">
+                  ${crypto.accuracy.toFixed(1)}% Accuracy
+                </span>
+              </div>
+            </div>
+          </div>
+        `).join('');
+
+        drawCharts(data);
+      }
+
+      function drawCharts(data) {
+        google.script.run.withSuccessHandler(chartData => {
+          const dataTable = new google.visualization.DataTable();
+          dataTable.addColumn('datetime', 'Time');
+          data.forEach((_, i) => {
+            dataTable.addColumn('number', data[i].symbol);
+          });
+
+          google.visualization.LineChart(document.getElementById('chart')).draw(dataTable, {
+            title: '24 Hour Price Predictions',
+            curveType: 'function',
+            legend: { position: 'bottom' }
+          });
+        }).getChartData();
+      }
+    </script>
+  </head>
+  <body onload="init()" class="container-fluid bg-dark text-light">
+    <h1 class="text-center my-4">Cryptdictor</h1>
+    <div id="chart" class="prediction-chart"></div>
+    <div id="cryptoGrid" class="row"></div>
+  </body>
 </html>
