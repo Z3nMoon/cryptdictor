@@ -1,57 +1,28 @@
+/* Add these to the existing style section */
 body {
-  font-family: 'Arial', sans-serif;
-  padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
-  background: #f5f6fa;
+  font-family: 'Roboto', sans-serif;
+  background: linear-gradient(45deg, #0a0a0a, #1d1d1d);
 }
 
-.section {
-  background: white;
-  padding: 20px;
-  margin: 20px 0;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+.crypto-card {
+  transition: transform 0.3s ease;
+  border: 1px solid #2d2d2d;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 15px;
+.crypto-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 150, 136, 0.3);
 }
 
-.coin-card {
-  border: 1px solid #e0e0e0;
+#chart {
+  background: #252525;
+  border-radius: 10px;
   padding: 15px;
-  border-radius: 8px;
-  transition: transform 0.2s;
+  margin: 20px 0;
 }
 
-.coin-card:hover {
-  transform: translateY(-2px);
-}
-
-.prediction-card {
-  padding: 20px;
-  background: #4a90e2;
-  color: white;
-  border-radius: 8px;
-  margin: 10px 0;
-}
-
-#accuracy-history table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 15px;
-}
-
-#accuracy-history th, 
-#accuracy-history td {
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid #ddd;
-}
-
-#accuracy-history tr:hover {
-  background: #f9f9f9;
+h1 {
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
 }
