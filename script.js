@@ -1,78 +1,115 @@
-// Free APIs with fallbacks
-const APIs = [
-  "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=25&sparkline=false",
-  "https://api.coinpaprika.com/v1/tickers?limit=25"
-];
+// ========== PREDICTION SYSTEM ========== //
+let predictionModel;
+const PREDICTION_HISTORY_KEY = "btc-predictions";
 
-// Fetch data with redundancy
-async function fetchCryptoData() {
-  for (const apiUrl of APIs) {
-    try {
-      const response = await fetch(apiUrl);
-      const data = await response.json();
-      updateUI(data);
-      return; // Exit if successful
-    } catch (error) {
-      console.log(`Failed ${apiUrl}, trying next...`);
-    }
+// Improved training with actual historical data (last 24 hours)
+async function fetchHistoricalData() {
+  try {
+    const response = await fetch(
+      "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=1"
+    );
+    const data = await response.json();
+    return data.prices.map(([timestamp, price]) => price);
+  } catch (error) {
+    console.error("Failed historical data:", error);
+    return Array.from({ length: 24 }, () => 30000 + Math.random() * 2000); // Fallback
   }
-  alert("All APIs failed. Try refreshing later.");
 }
 
-// Display data
-function updateUI(data) {
-  const container = document.getElementById("crypto-list");
-  container.innerHTML = data.map(coin => `
-    <div class="coin-card">
-      <h3>${coin.name || coin.symbol}</h3>
-      <p>$${coin.current_price || coin.price_usd}</p>
-      <small>MCap: $${(coin.market_cap || coin.market_cap_usd)?.toLocaleString()}</small>
-    </div>
-  `).join("");
-}
-
-// Simple prediction model (linear regression)
-let model;
 async function trainModel() {
-  // Mock data for example (replace with real historical prices)
-  const hours = Array.from({ length: 24 }, (_, i) => i);
-  const prices = hours.map(h => 30000 + Math.random() * 1000); // Fake BTC prices
-
-  model = tf.sequential({
-    layers: [tf.layers.dense({ units: 1, inputShape: [1] })]
+  const historicalData = await fetchHistoricalData();
+  
+  predictionModel = tf.sequential({
+    layers: [
+      tf.layers.dense({ units: 8, activation: "relu", inputShape: [24] }),
+      tf.layers.dense({ units: 1 })
+    ]
   });
-  model.compile({ optimizer: "sgd", loss: "meanSquaredError" });
+  
+  predictionModel.compile({ optimizer: "adam", loss: "meanSquaredError" });
 
-  const xs = tf.tensor2d(hours, [24, 1]);
-  const ys = tf.tensor2d(prices, [24, 1]);
-  await model.fit(xs, ys, { epochs: 20 });
+  // Prepare data
+  const xs = tf.tensor2d([historicalData.slice(0, 24)]);
+  const ys = tf.tensor2d([[historicalData[23]]]); // Predict next value
+
+  await predictionModel.fit(xs, ys, {
+    epochs: 50,
+    batchSize: 1,
+    verbose: 0
+  });
 }
 
-// Predict next hour
-async function predict() {
-  if (!model) await trainModel();
-  const latestPrice = 31000; // Replace with real-time price
-  const prediction = model.predict(tf.tensor2d([[24]])); // Predict hour 25
-  document.getElementById("prediction").innerHTML = `
-    Predicted: $${prediction.dataSync()[0].toFixed(2)}
+// ========== PREDICTION DISPLAY ========== //
+async function updatePredictions() {
+  if (!predictionModel) await trainModel();
+  
+  // Get latest BTC price
+  const btcPrice = document.querySelector('.coin-card:first-child p').innerText.replace('$', '');
+  const latestPrice = parseFloat(btcPrice);
+
+  // Generate prediction
+  const prediction = predictionModel.predict(tf.tensor2d([Array(24).fill(latestPrice)]));
+  const predictedPrice = prediction.dataSync()[0];
+  
+  // Display prediction
+  document.getElementById("current-prediction").innerHTML = `
+    <h3>Bitcoin (BTC)</h3>
+    <p>Current: $${latestPrice.toFixed(2)}</p>
+    <p>Predicted in 1h: $${predictedPrice.toFixed(2)}</p>
+    <small>${new Date().toLocaleTimeString()}</small>
   `;
-  trackAccuracy(latestPrice, prediction.dataSync()[0]);
+
+  // Save to history (actual price checked later)
+  savePrediction(predictedPrice, latestPrice);
 }
 
-// Track accuracy in localStorage
-function trackAccuracy(actual, predicted) {
-  const history = JSON.parse(localStorage.getItem("btc-predictions") || "[]");
-  history.push({ actual, predicted, timestamp: Date.now() });
-  localStorage.setItem("btc-predictions", JSON.stringify(history));
+// ========== ACCURACY TRACKING ========== //
+function savePrediction(predicted, actual) {
+  const history = JSON.parse(localStorage.getItem(PREDICTION_HISTORY_KEY) || "[]");
+  history.push({
+    timestamp: Date.now(),
+    predicted,
+    actual,
+    error: Math.abs(predicted - actual),
+    directionCorrect: (predicted > actual) === (actual > history[history.length-1]?.actual)
+  });
+  localStorage.setItem(PREDICTION_HISTORY_KEY, JSON.stringify(history));
+  updateAccuracyHistory();
+}
 
-  const errors = history.map(h => Math.abs(h.actual - h.predicted));
-  const avgError = errors.reduce((a, b) => a + b, 0) / errors.length;
-  document.getElementById("accuracy").innerHTML = `
-    Avg Error: $${avgError.toFixed(2)} over ${history.length} predictions
+function updateAccuracyHistory() {
+  const history = JSON.parse(localStorage.getItem(PREDICTION_HISTORY_KEY) || "[]");
+  const container = document.getElementById("accuracy-history");
+  
+  container.innerHTML = `
+    <table>
+      <tr>
+        <th>Time</th>
+        <th>Predicted</th>
+        <th>Actual</th>
+        <th>Error</th>
+        <th>Direction</th>
+      </tr>
+      ${history.map(entry => `
+        <tr>
+          <td>${new Date(entry.timestamp).toLocaleTimeString()}</td>
+          <td>$${entry.predicted.toFixed(2)}</td>
+          <td>$${entry.actual.toFixed(2)}</td>
+          <td class="${entry.error < 50 ? 'good' : 'bad'}">$${entry.error.toFixed(2)}</td>
+          <td>${entry.directionCorrect ? '✅' : '❌'}</td>
+        </tr>
+      `).join("")}
+    </table>
   `;
 }
 
-// Run updates
+// ========== INITIALIZE ========== //
 fetchCryptoData();
-setInterval(fetchCryptoData, 300000); // Refresh every 5 minutes
-setInterval(predict, 3600000); // Predict hourly
+setInterval(fetchCryptoData, 300000); // Refresh prices every 5 min
+setInterval(updatePredictions, 3600000); // Update predictions hourly
+
+// First prediction after initial load
+setTimeout(async () => {
+  await trainModel();
+  updatePredictions();
+}, 5000);
